@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>마이크로러닝 주제 응답</title>
+  <style>
+    :root { --pink:#ffd1e6; }
+    * { box-sizing:border-box; }
+    body { background: var(--pink); font-family:"Noto Sans KR", ui-rounded, system-ui, -apple-system, sans-serif; 
+           display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+    .card { background:#fff; width:min(720px,92vw); border-radius:24px; padding:32px; 
+             box-shadow:0 14px 40px rgba(0,0,0,.18); text-align:center; position:relative; }
+    h1 { margin:0 0 10px; color:#c2185b; }
+    p { margin:0 0 16px; color:#333; opacity:.8; }
+    input { width:100%; padding:14px 16px; border-radius:14px; border:2px solid #ffc0d6; font-size:16px; }
+    button { margin-top:14px; background:#ff6fa6; color:#fff; border:none; padding:12px 18px; 
+             border-radius:999px; font-weight:700; cursor:pointer; }
+    .thanks { display:none; margin-top:14px; color:#c2185b; font-weight:700; }
+    .icons { position:fixed; inset:0; opacity:.15; pointer-events:none;
+              background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24"><path fill="%23ff66a1" d="M7 10a5 5 0 0 1 10 0a4 4 0 0 1-1 .26V11a4 4 0 0 1-4 4h-1a4 4 0 0 1-4-4v-.74A4 4 0 0 1 7 10"/><path fill="%23f4a261" d="m12 22l-2.5-6H14.5z"/></svg>'); 
+              background-size:120px 120px; background-repeat:repeat; }
+  </style>
+</head>
+<body>
+  <div class="icons" aria-hidden="true"></div>
+  <div class="card">
+    <h1>원하는 마이크로러닝 연수 주제가 무엇인가요?</h1>
+    <p>키워드 한두 단어로 적어주세요. 예) AI 수업, 수행평가, 피드백 자동화</p>
+    <input id="answer" type="text" maxlength="80" placeholder="응답을 입력하세요" />
+    <button id="submitBtn">제출하기</button>
+    <div id="thanks" class="thanks">응답해주셔서 감사합니다!</div>
+  </div>
+
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyyS5sUtVM5_WroW-FO7wFEpivso_sz4A8j3WXCLB1V82XqtfZiy_rhu3CFthdMXYTn/exec";
+    const banned = [/시발|fuck|개새|병신|좆/ig];
+    function cleanText(s) {
+      let t = (s||'').trim().replace(/\s+/g,' ');
+      t = t.replace(/[\u{1F3FB}-\u{1FAD6}\u{1F300}-\u{1F6FF}\u{1F700}-\u{1F77F}]/gu,'');
+      return t;
+    }
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const input = document.getElementById('answer');
+      let text = cleanText(input.value);
+      if(!text) return alert('내용을 입력해주세요.');
+      if (banned.some(rx => rx.test(text))) return alert('부적절한 표현은 제출할 수 없습니다.');
+      try {
+        // Use form-encoded to avoid CORS preflight issues
+        const body = new URLSearchParams();
+        body.append('text', text);
+        body.append('event', 'event1');
+        const res = await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body
+        });
+        const data = await res.json();
+        if(data && data.ok) {
+          input.style.display='none';
+          document.getElementById('submitBtn').style.display='none';
+          document.getElementById('thanks').style.display='block';
+        } else {
+          alert('전송 오류가 발생했습니다.');
+        }
+      } catch(e) {
+        console.error(e);
+        alert('네트워크 오류가 발생했습니다.');
+      }
+    });
+  </script>
+</body>
+</html>

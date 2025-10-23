@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>워드클라우드</title>
+  <style>
+    body { margin:0; background:#000; color:#fff; font-family:"Noto Sans KR", system-ui, sans-serif; overflow:hidden; }
+    #cloud { width:100vw; height:100vh; }
+    .hint { position:fixed; top:10px; left:14px; font-size:12px; opacity:.6; }
+  </style>
+</head>
+<body>
+  <div class="hint">실시간 워드클라우드 (3초 간격 업데이트)</div>
+  <div id="cloud"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.7/d3.layout.cloud.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyyS5sUtVM5_WroW-FO7wFEpivso_sz4A8j3WXCLB1V82XqtfZiy_rhu3CFthdMXYTn/exec";
+    const container = document.getElementById('cloud');
+    let svg, g, lastData = [];
+
+    function initSVG() {
+      container.innerHTML = '';
+      const w = window.innerWidth, h = window.innerHeight;
+      svg = d3.select(container).append('svg').attr('width', w).attr('height', h);
+      g = svg.append('g').attr('transform', `translate(${w/2},${h/2})`);
+    }
+
+    function preprocess(list) {
+      const freq = new Map();
+      for(const item of list) {
+        const text = (item.text || '').trim();
+        if(!text) continue;
+        const key = text.toLowerCase();
+        const prev = freq.get(key) || { text, count:0 };
+        prev.count += 1;
+        prev.text = text;
+        freq.set(key, prev);
+      }
+      return Array.from(freq.values()).sort((a,b)=>b.count-a.count);
+    }
+
+    function drawCloud(data) {
+      initSVG();
+      const w = window.innerWidth, h = window.innerHeight;
+      if(!data.length) return;
+      const maxCount = d3.max(data, d=>d.count) || 1;
+      const sizeScale = d3.scaleLinear().domain([1,maxCount]).range([20, Math.min(140, w*0.1)]);
+      const words = data.map(d => ({ text: d.text, size: sizeScale(d.count) }));
+      d3.layout.cloud().size([w,h]).words(words)
+        .padding(5).rotate(() => Math.random()<0.85 ? 0 : 90)
+        .font("Noto Sans KR").fontSize(d => d.size)
+        .on("end", out => {
+          g.selectAll("text").data(out).enter().append("text")
+            .style("font-size", d=>d.size+"px")
+            .style("fill", "#ffffff")
+            .style("font-weight", 800)
+            .attr("text-anchor","middle")
+            .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
+            .text(d=>d.text);
+        }).start();
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch(WEB_APP_URL + "?mode=all&event=event1", { cache:'no-store', mode:'cors' });
+        const json = await res.json();
+        if(json && json.ok && Array.isArray(json.data)) {
+          lastData = json.data;
+          drawCloud(preprocess(lastData));
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    fetchData();
+    setInterval(fetchData, 3000);
+    window.addEventListener('resize', () => drawCloud(preprocess(lastData)));
+  </script>
+</body>
+</html>
